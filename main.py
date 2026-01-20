@@ -18,7 +18,7 @@ class IndustrialDashboard:
         self.root.geometry("1200x850")
         
         # --- INITIALIZE MODULES ---
-        self.generator = SignalGenerator(amplitudine=10, frecventa=0.1)
+        self.generator = SignalGenerator(amplitude=10, frequency=0.1)
         self.alarm_system = AlarmSystem(high_limit=18.0, low_limit=-15.0)
         self.logger = DataLogger(filename='data/simulation_log.csv')
 
@@ -56,10 +56,11 @@ class IndustrialDashboard:
         control_panel = ttk.LabelFrame(main_layout, text="Control Panel", padding=15)
         control_panel.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
 
-        # Buttons
+        # Start/Stop Button
         self.btn_start = ttk.Button(control_panel, text="START SIMULATION", command=self.toggle_simulation)
         self.btn_start.pack(fill=tk.X, pady=10)
 
+        # Data Logging Checkbox
         self.chk_log_var = tk.BooleanVar(value=False)
         self.chk_log = ttk.Checkbutton(control_panel, text="Enable Data Logging (CSV)", variable=self.chk_log_var, command=self.toggle_logging)
         self.chk_log.pack(fill=tk.X, pady=5)
@@ -76,6 +77,15 @@ class IndustrialDashboard:
         self.slider_freq = ttk.Scale(control_panel, from_=0.01, to=0.5, orient=tk.HORIZONTAL, command=self.update_params)
         self.slider_freq.set(0.1)
         self.slider_freq.pack(fill=tk.X, pady=5)
+
+
+        # Signal Type Selector (NEW FEATURE)
+        ttk.Label(control_panel, text="Signal Type:").pack(anchor="w", pady=(10, 0))
+        signal_options = ["Sine Wave", "Square Wave", "Sawtooth Wave"]
+        self.combo_type = ttk.Combobox(control_panel, values=signal_options, state="readonly")
+        self.combo_type.set("Sine Wave") # Default value
+        self.combo_type.pack(fill=tk.X, pady=5)
+        self.combo_type.bind("<<ComboboxSelected>>", self.change_signal_type)
 
         ttk.Separator(control_panel, orient='horizontal').pack(fill='x', pady=15)
 
@@ -133,6 +143,13 @@ class IndustrialDashboard:
 
     def toggle_logging(self):
         self.is_logging = self.chk_log_var.get()
+
+    def change_signal_type(self, event):
+        """Callback when user selects a new signal type from dropdown."""
+        new_type = self.combo_type.get()
+        # Pass the selection to the generator module
+        self.generator.set_signal_type(new_type)
+
 
     def update_params(self, _=None):
         if not hasattr(self, 'slider_amp') or not hasattr(self, 'slider_freq'):
