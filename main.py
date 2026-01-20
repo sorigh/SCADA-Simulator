@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.animation as animation
 import os
@@ -68,6 +69,28 @@ class IndustrialDashboard:
         self.chk_log.pack(fill=tk.X, pady=5)
 
         ttk.Separator(control_panel, orient='horizontal').pack(fill='x', pady=15)
+
+
+        # --- LIVE STATISTICS SECTION ---
+        ttk.Label(control_panel, text="LIVE STATISTICS (Window):").pack(anchor="w")
+        
+        # Frame pentru a le alinia frumos
+        stats_frame = ttk.Frame(control_panel)
+        stats_frame.pack(fill=tk.X, pady=5)
+
+        # MAX Value
+        self.lbl_stat_max = ttk.Label(stats_frame, text="MAX: 0.00", font=("Consolas", 10), foreground="red")
+        self.lbl_stat_max.pack(anchor="w")
+
+        # MIN Value
+        self.lbl_stat_min = ttk.Label(stats_frame, text="MIN: 0.00", font=("Consolas", 10), foreground="blue")
+        self.lbl_stat_min.pack(anchor="w")
+
+        # AVG Value
+        self.lbl_stat_avg = ttk.Label(stats_frame, text="AVG: 0.00", font=("Consolas", 10, "bold"))
+        self.lbl_stat_avg.pack(anchor="w")
+
+
 
         # Sliders
         ttk.Label(control_panel, text="Signal Amplitude:").pack(anchor="w")
@@ -195,6 +218,16 @@ class IndustrialDashboard:
         self.y_analog.append(analog_val)
         self.y_digital.append(digital_val)
         self.alarm_threshold_line.append(self.alarm_system.high_limit)
+        # --- UPDATE STATISTICS ---
+        # Calculate MAX, MIN, AVG over current window
+        if len(self.y_analog) > 0:
+            current_max = np.max(self.y_analog)
+            current_min = np.min(self.y_analog)
+            current_avg = np.mean(self.y_analog)
+
+            self.lbl_stat_max.config(text=f"MAX: {current_max:.2f} °C")
+            self.lbl_stat_min.config(text=f"MIN: {current_min:.2f} °C")
+            self.lbl_stat_avg.config(text=f"AVG: {current_avg:.2f} °C")
 
         # Sliding window logic
         if len(self.x_data) > self.history_len:
@@ -256,6 +289,12 @@ class IndustrialDashboard:
         self.line_digital.set_data([], [])
         self.line_alarm_limit.set_data([], [])
         
+
+        # Reset Stats Labels
+        self.lbl_stat_max.config(text="MAX: 0.00")
+        self.lbl_stat_min.config(text="MIN: 0.00")
+        self.lbl_stat_avg.config(text="AVG: 0.00")
+
         # 4. Force a redraw of the canvas to clear old lines instantly
         self.canvas.draw()
 
