@@ -15,7 +15,7 @@ class IndustrialDashboard:
     def __init__(self, root):
         self.root = root
         self.root.title("SCADA System - Industrial Monitoring Process")
-        self.root.geometry("1200x850")
+        self.root.geometry("1200x900")
         
         # --- INITIALIZE MODULES ---
         self.generator = SignalGenerator(amplitude=10, frequency=0.1)
@@ -59,7 +59,9 @@ class IndustrialDashboard:
         # Start/Stop Button
         self.btn_start = ttk.Button(control_panel, text="START SIMULATION", command=self.toggle_simulation)
         self.btn_start.pack(fill=tk.X, pady=10)
-
+        # Reset Button
+        self.btn_reset = ttk.Button(control_panel, text="RESET SYSTEM", command=self.reset_simulation)
+        self.btn_reset.pack(fill=tk.X, pady=5)
         # Data Logging Checkbox
         self.chk_log_var = tk.BooleanVar(value=False)
         self.chk_log = ttk.Checkbutton(control_panel, text="Enable Data Logging (CSV)", variable=self.chk_log_var, command=self.toggle_logging)
@@ -232,6 +234,34 @@ class IndustrialDashboard:
         self.root.destroy()
         self.root.quit()
         sys.exit(0)
+    
+    def reset_simulation(self):
+        """
+        Clears the visual graphs and resets time to 0.
+        Does NOT delete the CSV file, but logs a 'RESET' event if logging is active.
+        """
+        print("System Reset triggered.")
+        
+        # 1. Reset Time
+        self.simulation_time = 0.0
+
+        # 2. Clear Data Buffers
+        self.x_data.clear()
+        self.y_analog.clear()
+        self.y_digital.clear()
+        self.alarm_threshold_line.clear()
+
+        # 3. Clear Visual Lines immediately
+        self.line_analog.set_data([], [])
+        self.line_digital.set_data([], [])
+        self.line_alarm_limit.set_data([], [])
+        
+        # 4. Force a redraw of the canvas to clear old lines instantly
+        self.canvas.draw()
+
+        # 5. Log the reset event (Audit Trail)
+        if self.is_logging:
+            self.logger.log_step(0, 0, 0, "SYSTEM RESET PERFORMED")
 
 if __name__ == "__main__":
     root = tk.Tk()
