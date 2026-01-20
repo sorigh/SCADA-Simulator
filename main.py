@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.animation as animation
 import os
+import sys
 
 # --- IMPORT MODULES ---
 from modules.signal_generator import SignalGenerator
@@ -204,6 +205,16 @@ class IndustrialDashboard:
             self.ax2.set_ylim(-0.5, 1.5)
 
         return self.line_analog, self.line_digital, self.line_alarm_limit
+    
+    def on_close(self):
+        """Stops the animation and kills the process."""
+        print("Closing application...")
+        self.is_running = False
+        if self.ani.event_source:
+            self.ani.event_source.stop()
+        self.root.destroy()
+        self.root.quit()
+        sys.exit(0)
 
 if __name__ == "__main__":
     root = tk.Tk()
