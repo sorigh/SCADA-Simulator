@@ -28,7 +28,8 @@ class IndustrialDashboard:
         self.is_logging = False
         self.simulation_time = 0.0
         self.history_len = 200 # More points for a smoother look
-        
+        # [New] Manual Override Flag
+        self.manual_override_active = False # ON/OFF
         # Buffers
         self.x_data = []
         self.y_analog = []
@@ -67,6 +68,34 @@ class IndustrialDashboard:
         self.chk_log_var = tk.BooleanVar(value=False)
         self.chk_log = ttk.Checkbutton(control_panel, text="Enable Data Logging (CSV)", variable=self.chk_log_var, command=self.toggle_logging)
         self.chk_log.pack(fill=tk.X, pady=5)
+
+        # --- [new] Manual Control ---
+        ttk.Separator(control_panel, orient='horizontal').pack(fill='x', pady=10)
+        ttk.Label(control_panel, text="Motor Control:", font=("Arial", 10, "bold")).pack(anchor="w")
+
+        # Checkbox for activating Manual Mode
+        self.chk_manual_var = tk.BooleanVar(value=False)
+        self.chk_manual = ttk.Checkbutton(
+            control_panel, 
+            text="Activează Mod Manual", 
+            variable=self.chk_manual_var,
+            command=self.toggle_manual_ui
+        )
+        self.chk_manual.pack(fill=tk.X, pady=2)
+
+        # Button for Manual Override (Initially disabled)
+        self.btn_manual_toggle = tk.Button(
+            control_panel, 
+            text="FORȚEAZĂ MOTOR: OFF", 
+            bg="lightgray",
+            state="disabled", # Inactive until "Manual Mode" is checked
+            command=self.toggle_motor_manual
+        )
+        self.btn_manual_toggle.pack(fill=tk.X, pady=5)
+
+        ttk.Separator(control_panel, orient='horizontal').pack(fill='x', pady=15)
+
+
 
         ttk.Separator(control_panel, orient='horizontal').pack(fill='x', pady=15)
 
@@ -226,8 +255,13 @@ class IndustrialDashboard:
         analog_val = self.generator.get_analog_value(self.simulation_time)
         
         # Logic: If Temp > 5.0, Motor turns ON
-        digital_val = self.generator.get_digital_value(analog_val, prag=5.0)
-        
+        if self.chk_manual_var.get():
+            # Suntem în Mod Manual -> Luăm valoarea din butonul nostru (1 sau 0)
+            digital_val = 1 if self.manual_override_active else 0
+        else:
+            # Suntem în Mod Automat -> Logică originală (Temp > 5)
+            digital_val = self.generator.get_digital_value(analog_val, prag=5.0)
+            
         # 3. CHECK ALARMS
         is_alarm, status_msg, status_color = self.alarm_system.check_status(analog_val)
         
@@ -362,6 +396,24 @@ class IndustrialDashboard:
         # 5. Log the reset event (Audit Trail)
         if self.is_logging:
             self.logger.log_step(0, 0, 0, "SYSTEM RESET PERFORMED")
+
+    def toggle_manual_ui(self):
+        """Activate or deactivate the manual control button."""
+        if self.chk_manual_var.get():
+            # If we check Manual -> Activate the button
+            self.btn_manual_toggle.config(state="normal", bg="#f1c40f", text="FORCE MOTOR: OFF")
+            self.manual_override_active = False # Reset to OFF when entering manual mode
+        else:
+            # If we uncheck -> Button becomes gray and inactive
+            self.btn_manual_toggle.config(state="disabled", bg="lightgray", text="Mod Automat Activ")
+
+    def toggle_motor_manual(self):
+        """Toggle the motor state when in manual mode."""
+        self.manual_override_active = not self.manual_override_active
+        if self.manual_override_active:
+            self.btn_manual_toggle.config(text="FORCE MOTOR: ON", bg="#2ecc71") # Verde
+        else:
+            self.btn_manual_toggle.config(text="FORCE MOTOR: OFF", bg="#e74c3c") # Roșu
 
 if __name__ == "__main__":
     root = tk.Tk()
