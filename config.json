@@ -1,5 +1,5 @@
 {
-    "alarm_high": 28.0,
+    "alarm_high": 32.0,
     "alarm_low": -10.0,
     "log_file": "data/simulation_log.csv",
     "history_length": 100,

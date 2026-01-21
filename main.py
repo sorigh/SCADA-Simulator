@@ -283,7 +283,7 @@ class IndustrialDashboard:
             digital_val = 1 if self.manual_override_active else 0
         else:
             # Suntem în Mod Automat -> Logică originală (Temp > 5)
-            digital_val = self.generator.get_digital_value(analog_val, prag=5.0)
+            digital_val = self.generator.get_digital_value(analog_val, threshold=20.0)
 
         # 3. CHECK ALARMS
         is_alarm, status_msg, status_color = self.alarm_system.check_status(analog_val)
@@ -334,10 +334,17 @@ class IndustrialDashboard:
             
             # Set Y-Axis for Analog (Auto-scale but with MINIMUM range)
             # This prevents zooming into noise when amplitude is 0
-            y_min, y_max = min(self.y_analog), max(self.y_analog)
-            limit = max(abs(y_min), abs(y_max), 20) # Ensure at least +/- 20 range
-            self.ax1.set_ylim(-(limit + 5), limit + 5)
-            
+            y_min = min(self.y_analog)
+            y_max = max(self.y_analog)
+
+            padding = (y_max - y_min) * 0.2
+            if padding < 5: padding = 5
+
+            limit = max(abs(y_min), abs(y_max), 40) # Ensure at least +/- 20 range
+
+
+            self.ax1.set_ylim(y_min - padding, y_max + padding)
+
             # Set Y-Axis for Digital (Fixed to show ON/OFF clearly)
             self.ax2.set_ylim(-0.5, 1.5)
 

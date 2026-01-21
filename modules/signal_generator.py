@@ -5,10 +5,11 @@ class SignalGenerator:
     Handles math generation for signals.
     Updated to be deterministic based on simulation time.
     """
-    def __init__(self, amplitude=10, frequency=0.1, noise=0.5):
+    def __init__(self, amplitude=10, frequency=0.1, noise=0.5, offset=20.0):
         self.amplitude = amplitude
         self.frequency = frequency
         self.noise = noise
+        self.offset = offset
         self.signal_type = "Sine Wave"
 
     def set_signal_type(self, new_type):
@@ -38,15 +39,15 @@ class SignalGenerator:
             # Scale to range [-Amplitude, +Amplitude]
             base_value = 2 * self.amplitude * (fraction - 0.5)
 
-
+        final_value = self.offset + base_value
         # Add random noise
         random_noise = np.random.normal(0, self.noise)
 
-        return base_value + random_noise
-
-    def get_digital_value(self, valoare_analogica, prag=5):
+        return final_value + random_noise
+    
+    def get_digital_value(self, valoare_analogica, threshold=20.0):
         """Returns 1 if analog value > threshold, else 0."""
-        return 1 if valoare_analogica > prag else 0
+        return 1 if valoare_analogica > threshold else 0
 
     def update_params(self, amp=None, freq=None):
         """Updates parameters dynamically."""
