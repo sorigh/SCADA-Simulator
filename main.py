@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.animation as animation
+import json 
 import os
 import sys
 
@@ -18,16 +19,22 @@ class IndustrialDashboard:
         self.root.title("SCADA System - Industrial Monitoring Process")
         self.root.geometry("1200x900")
         
+
+        # --- LOAD CONFIG ---
+        self.config = self.load_config() 
+        print(f"Loaded config: {self.config}")
+
+
         # --- INITIALIZE MODULES ---
         self.generator = SignalGenerator(amplitude=10, frequency=0.1)
-        self.alarm_system = AlarmSystem(high_limit=18.0, low_limit=-15.0)
-        self.logger = DataLogger(filename='data/simulation_log.csv')
+        self.alarm_system = AlarmSystem(high_limit=self.config["alarm_high"], low_limit=self.config["alarm_low"])
+        self.logger = DataLogger(filename=self.config["log_file"])
 
         # --- STATE VARIABLES ---
         self.is_running = False
         self.is_logging = False
         self.simulation_time = 0.0
-        self.history_len = 200 # More points for a smoother look
+        self.history_len = self.config["history_length"] # More points for a smoother look
         # [New] Manual Override Flag
         self.manual_override_active = False # ON/OFF
         # Buffers
@@ -44,11 +51,27 @@ class IndustrialDashboard:
         self.ani = animation.FuncAnimation(
             self.fig, 
             self.update_process, 
-            interval=50,   # 50ms = 20 FPS (Smooth)
+            interval=self.config["refresh_rate_ms"],   # 50ms = 20 FPS (Smooth)
             blit=False, 
             cache_frame_data=False 
         )
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def load_config(self):
+        """Try to load settings from config.json. If it doesn't exist, use default values."""
+        try:
+            with open('config.json', 'r') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            print("Config file config.json not found. Using default settings.")
+            # Values in case you delete the file by accident
+            return {
+                "alarm_high": 18.0, 
+                "alarm_low": -15.0, 
+                "log_file": "data/default_log.csv",
+                "history_length": 200,
+                "refresh_rate_ms": 50
+            }
 
     def setup_ui(self):
         main_layout = ttk.Frame(self.root)
@@ -261,7 +284,7 @@ class IndustrialDashboard:
         else:
             # Suntem în Mod Automat -> Logică originală (Temp > 5)
             digital_val = self.generator.get_digital_value(analog_val, prag=5.0)
-            
+
         # 3. CHECK ALARMS
         is_alarm, status_msg, status_color = self.alarm_system.check_status(analog_val)
         
