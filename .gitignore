@@ -1,0 +1,10 @@
+# Python compilations
+__pycache__/
+*.pyc
+
+# Logs and Data
+data/*.csv
+*.log
+
+# VS Code settings
+.vscode/

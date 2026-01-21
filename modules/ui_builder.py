@@ -9,7 +9,7 @@ class UIBuilder:
     Separates the visual layout from the main simulation logic.
     """
     def __init__(self, app_instance, root):
-        self.app = app_instance  # Reference to the main IndustrialDashboard instance
+        self.app = app_instance
         self.root = root
 
     def build_all(self):
@@ -107,9 +107,9 @@ class UIBuilder:
 
         # Draw Static Elements
         self.app.canvas_hmi.create_rectangle(30, 30, 90, 130, outline="black", width=3) 
-        self.app.canvas_hmi.create_text(60, 140, text="Tank", font=("Arial", 8)) # Translated
+        self.app.canvas_hmi.create_text(60, 140, text="Tank", font=("Arial", 8))
         
-        # Draw Dynamic Liquid (Saved in liquid_id)
+        # Draw Dynamic Liquid
         self.app.liquid_id = self.app.canvas_hmi.create_rectangle(32, 128, 88, 128, fill="#3498db", outline="")
 
         # Draw Pipe
@@ -142,15 +142,26 @@ class UIBuilder:
         self.app.fig.set_facecolor('#f0f0f0')
         plt.subplots_adjust(bottom=0.1, right=0.95, top=0.95, hspace=0.3)
 
-        # Analog Plot
+        # --- Analog Plot ---
         self.app.ax1.set_title("Analog Signal (Temperature)", fontsize=11, fontweight='bold')
         self.app.ax1.set_ylabel("Temperature (°C)")
         self.app.ax1.grid(True, linestyle='--', alpha=0.7)
+        
+        # 1. Main Process Line
         self.app.line_analog, = self.app.ax1.plot([], [], color='#007acc', lw=2.5, label='Process Value')
-        self.app.line_alarm_limit, = self.app.ax1.plot([], [], color='red', linestyle='--', lw=1.5, label='Alarm Threshold')
-        self.app.ax1.legend(loc='upper right')
+        
+        # 2. High Alarm Line (Red dashed)
+        self.app.line_alarm_limit, = self.app.ax1.plot([], [], color='red', linestyle='--', lw=1.5, label='High Alarm')
+        
+        # 3. [NEW] Low Alarm Line (Orange dashed)
+        self.app.line_alarm_low, = self.app.ax1.plot([], [], color='#e67e22', linestyle='--', lw=1.5, label='Low Alarm')
+        
+        # 4. [NEW] Baseline / Offset (Green dotted)
+        self.app.line_baseline, = self.app.ax1.plot([], [], color='green', linestyle=':', lw=1.0, alpha=0.8, label='Baseline (20°C)')
 
-        # Digital Plot
+        self.app.ax1.legend(loc='upper right', fontsize=8)
+
+        # --- Digital Plot ---
         self.app.ax2.set_title("Digital Output (Motor State)", fontsize=11, fontweight='bold')
         self.app.ax2.set_ylabel("State (0/1)")
         self.app.ax2.set_ylim(-0.5, 1.5) 

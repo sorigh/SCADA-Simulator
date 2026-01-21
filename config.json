@@ -1,6 +1,6 @@
 {
-    "alarm_high": 32.0,
-    "alarm_low": -10.0,
+    "alarm_high": 40.0,
+    "alarm_low": 0.0,
     "log_file": "data/simulation_log.csv",
     "history_length": 100,
     "refresh_rate_ms": 200

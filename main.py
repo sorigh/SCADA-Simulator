@@ -9,7 +9,7 @@ import sys
 from modules.signal_generator import SignalGenerator
 from modules.alarm_logic import AlarmSystem
 from modules.data_logger import DataLogger
-from modules.ui_builder import UIBuilder  # We import the new UI module
+from modules.ui_builder import UIBuilder 
 
 class IndustrialDashboard:
     def __init__(self, root):
@@ -22,8 +22,7 @@ class IndustrialDashboard:
         print(f"Loaded config: {self.config}")
 
         # --- INITIALIZE MODULES ---
-        # Note: We assume SignalGenerator has the 'offset' parameter default=20.0
-        self.generator = SignalGenerator(amplitude=10, frequency=0.1) 
+        self.generator = SignalGenerator(amplitude=10, frequency=0.1, offset=20.0)
         self.alarm_system = AlarmSystem(high_limit=self.config["alarm_high"], low_limit=self.config["alarm_low"])
         self.logger = DataLogger(filename=self.config["log_file"])
 
@@ -32,16 +31,19 @@ class IndustrialDashboard:
         self.is_logging = False
         self.simulation_time = 0.0
         self.history_len = self.config["history_length"]
-        self.manual_override_active = False # Manual Mode Flag
+        self.manual_override_active = False 
         
         # Data Buffers
         self.x_data = []
         self.y_analog = []
         self.y_digital = []
-        self.alarm_threshold_line = [] 
+        
+        # Lines Buffers
+        self.line_high_data = []    # Buffer for High Alarm
+        self.line_low_data = []     # Buffer for Low Alarm
+        self.line_base_data = []    # Buffer for Baseline
 
         # --- BUILD GUI ---
-        # We delegate the UI creation to the UIBuilder class
         self.ui = UIBuilder(self, self.root)
         self.ui.build_all()
         
@@ -64,7 +66,7 @@ class IndustrialDashboard:
             print("Config file not found. Using defaults.")
             return {
                 "alarm_high": 32.0, 
-                "alarm_low": -10.0, 
+                "alarm_low": 0.0,   # [UPDATED] Low threshold default is 0.0
                 "log_file": "data/default_log.csv",
                 "history_length": 100,
                 "refresh_rate_ms": 200
@@ -97,7 +99,6 @@ class IndustrialDashboard:
             pass
 
     def toggle_manual_ui(self):
-        """Enable/Disable the Manual Force Button."""
         if self.chk_manual_var.get():
             self.btn_manual_toggle.config(state="normal", bg="#f1c40f", text="FORCE MOTOR: OFF")
             self.manual_override_active = False 
@@ -105,7 +106,6 @@ class IndustrialDashboard:
             self.btn_manual_toggle.config(state="disabled", bg="lightgray", text="Auto Mode Active")
 
     def toggle_motor_manual(self):
-        """Toggle the forced motor state."""
         self.manual_override_active = not self.manual_override_active
         if self.manual_override_active:
             self.btn_manual_toggle.config(text="FORCE MOTOR: ON", bg="#2ecc71")
@@ -113,7 +113,6 @@ class IndustrialDashboard:
             self.btn_manual_toggle.config(text="FORCE MOTOR: OFF", bg="#e74c3c")
 
     def update_process(self, frame):
-        """Main Simulation Loop."""
         if not self.is_running:
             return
 
@@ -121,16 +120,16 @@ class IndustrialDashboard:
         self.simulation_time += 0.1 
 
         # 2. Get Data
-        # Generator now includes Offset (default 20.0)
         analog_val = self.generator.get_analog_value(self.simulation_time)
         
-        # Logic Selection
+        # Threshold logic for Motor (Center = 20.0)
+        threshold_motor = self.generator.offset # Should be 20.0
+        
         if self.chk_manual_var.get():
-            # Manual Mode
             digital_val = 1 if self.manual_override_active else 0
         else:
-            # Auto Mode: Threshold set to 20.0 (Center of the graph)
-            digital_val = self.generator.get_digital_value(analog_val, threshold=20.0)
+            # Fix: Typo corrected here
+            digital_val = self.generator.get_digital_value(analog_val, threshold=threshold_motor)
 
         # 3. Check Alarms
         is_alarm, status_msg, status_color = self.alarm_system.check_status(analog_val)
@@ -145,18 +144,24 @@ class IndustrialDashboard:
         if self.is_logging:
             self.logger.log_step(self.simulation_time, analog_val, digital_val, status_msg)
 
-        # 5. Update Buffers
+        # 5. Update Buffers (Including new lines)
         self.x_data.append(self.simulation_time)
         self.y_analog.append(analog_val)
         self.y_digital.append(digital_val)
-        self.alarm_threshold_line.append(self.alarm_system.high_limit)
+        
+        # Add values for the 3 constant lines
+        self.line_high_data.append(self.alarm_system.high_limit)
+        self.line_low_data.append(self.alarm_system.low_limit)
+        self.line_base_data.append(self.generator.offset) # 20.0
         
         # Manage History Length
         if len(self.x_data) > self.history_len:
             self.x_data.pop(0)
             self.y_analog.pop(0)
             self.y_digital.pop(0)
-            self.alarm_threshold_line.pop(0)
+            self.line_high_data.pop(0)
+            self.line_low_data.pop(0)
+            self.line_base_data.pop(0)
 
         # 6. Update Stats
         if len(self.y_analog) > 0:
@@ -164,17 +169,19 @@ class IndustrialDashboard:
             self.lbl_stat_min.config(text=f"MIN: {np.min(self.y_analog):.2f} °C")
             self.lbl_stat_avg.config(text=f"AVG: {np.mean(self.y_analog):.2f} °C")
 
-        # 7. Update Graph Lines
+        # 7. Update Graph Lines (All 4 lines on top graph)
         self.line_analog.set_data(self.x_data, self.y_analog)
-        self.line_alarm_limit.set_data(self.x_data, self.alarm_threshold_line)
+        self.line_alarm_limit.set_data(self.x_data, self.line_high_data)
+        self.line_alarm_low.set_data(self.x_data, self.line_low_data)
+        self.line_baseline.set_data(self.x_data, self.line_base_data)
+        
         self.line_digital.set_data(self.x_data, self.y_digital)
         
-        # 8. Scale Axes (Auto-Center Logic)
+        # 8. Scale Axes
         if len(self.x_data) > 1:
             self.ax1.set_xlim(min(self.x_data), max(self.x_data))
             self.ax2.set_xlim(min(self.x_data), max(self.x_data))
             
-            # Center Y-Axis on the data
             y_min, y_max = min(self.y_analog), max(self.y_analog)
             padding = (y_max - y_min) * 0.2
             if padding < 5: padding = 5
@@ -183,27 +190,24 @@ class IndustrialDashboard:
             self.ax2.set_ylim(-0.5, 1.5)
 
         # 9. HMI Animation
-        # Motor Color
         color_motor = "#2ecc71" if digital_val > 0.5 else "#95a5a6"
         self.canvas_hmi.itemconfig(self.motor_id, fill=color_motor)
 
-        # Liquid Level
-        # Map roughly 0-40 degrees to the tank height
         safe_analog = max(0, min(analog_val, 40)) 
         fill_ratio = safe_analog / 40.0
         fill_height = fill_ratio * 98 
         new_top_y = 128 - fill_height
         self.canvas_hmi.coords(self.liquid_id, 32, new_top_y, 88, 128)
 
-        # Liquid Color based on Alarm
         if "CRITICAL" in status_msg:
             self.canvas_hmi.itemconfig(self.liquid_id, fill="#e74c3c")
         elif "WARNING" in status_msg:
-            self.canvas_hmi.itemconfig(self.liquid_id, fill="#f39c12")
+            self.canvas_hmi.itemconfig(self.liquid_id, fill="#e67e22") # Orange for low
         else:
             self.canvas_hmi.itemconfig(self.liquid_id, fill="#3498db")
 
-        return self.line_analog, self.line_digital, self.line_alarm_limit
+        # Must return all lines that are animated
+        return self.line_analog, self.line_digital, self.line_alarm_limit, self.line_alarm_low, self.line_baseline
     
     def on_close(self):
         print("Closing application...")
@@ -220,11 +224,16 @@ class IndustrialDashboard:
         self.x_data.clear()
         self.y_analog.clear()
         self.y_digital.clear()
-        self.alarm_threshold_line.clear()
+        
+        self.line_high_data.clear()
+        self.line_low_data.clear()
+        self.line_base_data.clear()
 
         self.line_analog.set_data([], [])
         self.line_digital.set_data([], [])
         self.line_alarm_limit.set_data([], [])
+        self.line_alarm_low.set_data([], [])
+        self.line_baseline.set_data([], [])
         
         self.lbl_stat_max.config(text="MAX: 0.00")
         self.lbl_stat_min.config(text="MIN: 0.00")
