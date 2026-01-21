@@ -112,6 +112,34 @@ class IndustrialDashboard:
         self.combo_type.pack(fill=tk.X, pady=5)
         self.combo_type.bind("<<ComboboxSelected>>", self.change_signal_type)
 
+        # HMI Panel Separator
+
+        ttk.Separator(control_panel, orient='horizontal').pack(fill='x', pady=10)
+        ttk.Label(control_panel, text="VIZUALIZARE PROCES:", font=("Arial", 10, "bold")).pack(anchor="w")
+
+        # 1. Canvas-ul (drawing area)
+        self.canvas_hmi = tk.Canvas(control_panel, width=250, height=150, bg="white", highlightthickness=1, highlightbackground="#aaaaaa")
+        self.canvas_hmi.pack(pady=5)
+
+        # 2. Draw the Tank (Static)
+        # Coordonates: x1, y1, x2, y2
+        self.canvas_hmi.create_rectangle(30, 30, 90, 130, outline="black", width=3) 
+        self.canvas_hmi.create_text(60, 140, text="Rezervor", font=("Arial", 8))
+
+        # 3. Draw the Liquid (Dynamic - we save it in self.liquid_id so we can modify it)
+        # Initially empty (y1=130, y2=130)
+        self.liquid_id = self.canvas_hmi.create_rectangle(32, 128, 88, 128, fill="#3498db", outline="")
+
+        # 4. Pipe Connection (Static)
+        self.canvas_hmi.create_line(90, 100, 160, 100, width=4, fill="#555")
+
+        # 5. Motor / Pump (Dynamic - circle)
+        self.motor_id = self.canvas_hmi.create_oval(160, 75, 210, 125, fill="gray", outline="black", width=2)
+        self.canvas_hmi.create_text(185, 140, text="Motor", font=("Arial", 8))
+        self.canvas_hmi.create_text(185, 85, text="M", font=("Arial", 12, "bold"), fill="white")
+
+
+
         ttk.Separator(control_panel, orient='horizontal').pack(fill='x', pady=15)
 
         # Status & Values
@@ -255,6 +283,39 @@ class IndustrialDashboard:
             
             # Set Y-Axis for Digital (Fixed to show ON/OFF clearly)
             self.ax2.set_ylim(-0.5, 1.5)
+
+        # 1. Animate Motor (Digital)
+        # If digital_val is 1 (ON), make the motor Green, otherwise Gray
+        color_motor = "#2ecc71" if digital_val > 0.5 else "#95a5a6" # Verde sau Gri
+        self.canvas_hmi.itemconfig(self.motor_id, fill=color_motor)
+
+        # 2. Animate Liquid Level (Analog)
+        # Map temperature (-15...40 degrees) to tank height (pixels 30...130)
+        # Tank has internal height of approx 100 pixels.
+        # Logic: Low temp = Low level. High temp = High level.
+
+        # Clamp values to prevent drawing outside the canvas
+        safe_analog = max(-15, min(analog_val, 40)) 
+
+        # Calculate fill ratio (0.0 to 1.0)
+        # Total range: 40 - (-15) = 55 units
+        fill_ratio = (safe_analog + 15) / 55
+        
+        # Calculate Y coordinate of top (128 is base, subtract height)
+        fill_height = fill_ratio * 98 
+        new_top_y = 128 - fill_height
+
+        # Update coordinates of the blue rectangle
+        self.canvas_hmi.coords(self.liquid_id, 32, new_top_y, 88, 128)
+
+        # 3. Change liquid color on ALARM
+        # If there's an alarm, make the liquid Red or Orange
+        if "CRITICAL" in status_msg:
+            self.canvas_hmi.itemconfig(self.liquid_id, fill="#e74c3c") # Roșu
+        elif "WARNING" in status_msg:
+            self.canvas_hmi.itemconfig(self.liquid_id, fill="#f39c12") # Portocaliu
+        else:
+            self.canvas_hmi.itemconfig(self.liquid_id, fill="#3498db") # Albastru normal
 
         return self.line_analog, self.line_digital, self.line_alarm_limit
     
